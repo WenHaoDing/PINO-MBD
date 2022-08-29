@@ -5,18 +5,29 @@ import shutil
 from models.fourier1d import FNN1d_HM
 from train_utils import Adam
 from train_utils.datasets import HM_Loader_WithVirtualData
-from train_utils.train_2d import train_HM_WithVirtual, train_HM_GradNorm
+from train_utils.train_2d import train_HM_GradNorm
 from train_utils.eval_2d import eval_burgers
 from train_utils.solution_extension import FDD_Extension
 import matplotlib.pyplot as plt
 import os
 from train_utils.losses_HM import HM_PINO_loss
-
 from Defination_Experiments import Experiments_GradNorm, Experiments_Virtual
-
-# import spicy.io as io
 import numpy as np
 
+'''
+The purpose of this runner is to train the corresponding PINO-MBD for the toy example (HM refers to 'hypothetical 
+mechanism'.) 
+Training details for the config file (in Table 1):
+(1). For T1, use OperatorType: 'PINO-MBD', DiffLossSwitch: 'Off', VirtualSwitch: 'Off'.
+(2). For T2, use OperatorType: 'PINO-MBD', DiffLossSwitch: 'On', VirtualSwitch: 'Off'.
+(3). For T3, use OperatorType: 'PINO-MBD', DiffLossSwitch: 'Off', VirtualSwitch: 'On'.
+(4). For T4, use OperatorType: 'PINO-MBD', DiffLossSwitch: 'On', VirtualSwitch: 'Off'.
+(5). For T5, same as T1, use 'weights_datapath: 'data/Project_FES/Weights_PINO.mat'' instead of 
+'weights_datapath: 'data/Project_FES/Weights_Medium_5000.mat''
+(6). For T6, same as T3, use 'weights_datapath: 'data/Project_FES/Weights_PINO.mat'' instead of 
+'weights_datapath: 'data/Project_FES/Weights_Medium_5000.mat''
+(7). For T7, use OperatorType: 'FNO'.
+'''
 
 def run(config, args=False):
     data_config = config['data']

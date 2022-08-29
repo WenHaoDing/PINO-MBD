@@ -16,7 +16,17 @@ from train_utils.losses import LpLoss
 import numpy as np
 import time
 from Defination_Experiments import Experiments_GradNorm_VTCD
-# f = open(r'configs\pretrain\VTCD.yaml')
+
+'''
+The purpose of this runner is to train the corresponding PINO-MBD for the vehicle-track coupled dynamics (VTCD).
+Training details for the config file (in Table 1):
+(1). For V1, use OperatorType: 'PINO-MBD', DiffLossSwitch: 'On', Boundary: 'Off', VirtualSwitch: 'Off'.
+(2). For V2, use OperatorType: 'PINO-MBD', DiffLossSwitch: 'On', Boundary: 'On', VirtualSwitch: 'Off'.
+(3). For V3, same as V2, use 'weights_datapath: 'Weights_PINO_10000V2.mat'' instead of 
+'weights_datapath: 'data/Project_VTCD/Weights_10000V2.mat'.
+(4). For V4, use use OperatorType: 'FNO'.
+'''
+
 f = open(r'configs/VTCD/VTCD_V2.yaml')
 VTCD_config = yaml.load(f)
 

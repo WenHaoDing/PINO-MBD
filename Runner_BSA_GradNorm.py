@@ -5,9 +5,6 @@ from models.fourier1d import FNN1d_BSA_GradNorm
 from train_utils import Adam
 from train_utils.datasets import BSA_Loader_WithVirtualData, FES_Loader
 from train_utils.train_2d import train_BSA_WithGradNorm
-from train_utils.eval_2d import eval_burgers
-from train_utils.solution_extension import FDD_Extension
-import matplotlib.pyplot as plt
 import os
 from train_utils.losses_BSA import BSA_PINO_loss
 import h5py
@@ -17,9 +14,23 @@ from scipy.io import savemat
 # import spicy.io as io
 import numpy as np
 
+'''
+The purpose of this runner is to train the corresponding PINO-MBD for the reliability assessment of the 4-storey 
+building. There are three options for the 'Style' variable. Use Style=Train for training, Style=eval for generating a 
+small amount of prediction results with a pretrained PINO-MBD, and Style=eval_batch to generate a large amount of 
+prediction results for reliability assessment (STEP1).
+After a large amount of predictions are made, turn to post [processing>Figure_RA.py] to continue STEP2 of reliability 
+assessment.
+Other details:
+(1). The variable 'virtual_datapath' describes the location of the virtual data, which is generated in Matlab with
+[Matlab codes>BSA>Generator_Virtual.m]
+(2). The variable 'ckpt_path' describes the location of the pretrained PINO-MBD parameters.
+(3). This example is trained on a small dataset. For best performance, use NoData: 'Off', Virtual Switch: 'On', 
+and DiffLossSwitch: 'On'.
+'''
+
 f = open(r'configs/BSA/BSA_PINO-MBD.yaml')
 BSA_config = yaml.load(f)
-
 
 def run(config, args=False):
     data_config = config['data']
@@ -34,7 +45,6 @@ def run(config, args=False):
                                          outputDim=data_config['outputDim'],
                                          ComDevice=ComDevice)
 
-    # Manual:Change new to False(from new)
     train_loader, test_loader, virtual_loader, PDE_weights_virtual, ToOneV, W2_CX, W2_CY, W2_CZ, Eigens2, TrackDOFs, Nloc = dataset.make_loader(
         n_sample=data_config['n_sample'], n_sample_virtual=data_config['n_sample_virtual'],
         batch_size=config['train']['batchsize'],
@@ -93,48 +103,6 @@ def run(config, args=False):
                            use_tqdm=True
                            )
 
-    # for x, y in train_loader:
-    #     x, y = x.cuda(), y.cuda()
-    #     batch_size = config['train']['batchsize']
-    #     nt = data_config['nt']
-    #     out = model(x)
-    #     print('Shape of x={}; Shape of y={}; Shape of out={}'.format(x.shape, y.shape, out.shape))
-    #     device2 = torch.device('cpu')
-    #     plt.figure(1)
-    #     plt.plot(y.to(device2).permute([0, 2, 1])[0, 0, :].detach().numpy(), color='red')
-    #     plt.plot(out.to(device2).permute([0, 2, 1])[0, 0, :].detach().numpy(), linestyle='--', color='black')
-    #     plt.figure(2)
-    #     plt.plot(y.to(device2).permute([0, 2, 1])[0, 0+20, :].detach().numpy(), color='red')
-    #     plt.plot(out.to(device2).permute([0, 2, 1])[0, 0+20, :].detach().numpy(), linestyle='--', color='black')
-    #     plt.figure(3)
-    #     plt.plot(y.to(device2).permute([0, 2, 1])[0, 0+21, :].detach().numpy(), color='red')
-    #     plt.plot(out.to(device2).permute([0, 2, 1])[0, 0+21, :].detach().numpy(), linestyle='--', color='black')
-    #     plt.figure(4)
-    #     plt.plot(y.to(device2).permute([0, 2, 1])[0, 0+22, :].detach().numpy(), color='red')
-    #     plt.plot(out.to(device2).permute([0, 2, 1])[0, 0+22, :].detach().numpy(), linestyle='--', color='black')
-    #     plt.figure(5)
-    #     plt.plot(y.to(device2).permute([0, 2, 1])[0, 0+23, :].detach().numpy(), color='red')
-    #     plt.plot(out.to(device2).permute([0, 2, 1])[0, 0+23, :].detach().numpy(), linestyle='--', color='black')
-    #     plt.figure(6)
-    #     plt.plot(y.to(device2).permute([0, 2, 1])[0, 0+26, :].detach().numpy(), color='red')
-    #     plt.plot(out.to(device2).permute([0, 2, 1])[0, 0+26, :].detach().numpy(), linestyle='--', color='black')
-    #     plt.show()
-    #
-    #     # dy, ddy = FDD_Extension(y, dt=0.5)
-    #     # dout, ddout = FDD_Extension(out, dt=0.5)
-    #     # # plt.figure(1)
-    #     # # plt.plot(dy.to(device2).permute([0, 2, 1])[0, 0, :].detach().numpy(), color='red')
-    #     # # plt.plot(dout.to(device2).permute([0, 2, 1])[0, 0, :].detach().numpy(), linestyle='--', color='black')
-    #     # # plt.show()
-    #     #
-    #     # # dy = np.mat(dy.to(device2).detach().numpy())
-    #     # # ddy = np.mat(ddy.to(device2).detach().numpy())
-    #     # # dout = np.mat(dout.to(device2).detach().numpy())
-    #     # # ddout = np.mat(ddout.to(device2).detach().numpy())
-    #     # # io.savemat('PythonData.mat', {'dy': dy, 'ddy': ddy, 'dout': dout, 'ddout': ddout})
-    #     #
-    #     np.savetxt('y.txt', y.to(device2).permute([0, 2, 1])[0, 0+20, :].detach().numpy())
-    #     np.savetxt('out.txt', out.to(device2).permute([0, 2, 1])[0, 0+20, :].detach().numpy())
     return model
 
 
@@ -146,45 +114,50 @@ if Style == 'Train':
     Experiments_GradNorm_BSA(Multiple, Clip, File, run)
     # Experiments_Virtual_BSA(Multiple, Clip, File, run)
 elif Style == 'eval':
+    # Generate output as Matlab.mat file
     device = torch.device('cpu')
     BSA_data_config = BSA_config['data']
     model = FNN1d_BSA_GradNorm(modes=BSA_config['model']['modes'],
                                width=BSA_config['model']['width'], fc_dim=BSA_config['model']['fc_dim'],
                                inputDim=BSA_data_config['inputDim'],
                                outputDim=BSA_data_config['outputDim'], task_number=4).to(device)
-    ckpt_path = 'F:/Pycharm/ExistingPytorch/GNN_Series/Physics-Informed Neural Operator/PINO-Project1/checkpoints/BSARunner/Experiment1/BSA_405.pt'
+    ckpt_path = '~.pt'
     ckpt = torch.load(ckpt_path)
     model.load_state_dict(ckpt['model'])
-    virtual_datapath = 'F:/Pycharm/ExistingPytorch/GNN_Series/Physics-Informed Neural Operator/PINO-Project1/data/Project_BSA/PDEM/VirtualData_499.mat'
+    virtual_datapath = '~.mat'
     input_eval = torch.tensor(h5py.File(virtual_datapath)['input'][:, 40:, :]).permute([2, 1, 0]).to(torch.float32)
     # eval_dataset = torch.utils.data.TensorDataset(input_eval)
     # eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=1000, shuffle=False)
     index = 1
-    SavePath = 'F:/Pycharm/ExistingPytorch/GNN_Series/Physics-Informed Neural Operator/PINO-Project1/checkpoints/BSARunner/Experiment1/eval/'
-
+    SavePath = '~/'
     out = model(input_eval).detach().numpy()
     mdic = {"output": out}
-    FileName = SavePath + 'eval_499.mat'
+    FileName = SavePath + 'Name.mat'
     savemat(FileName, mdic)
+
 elif Style == 'eval_batch':
+    # Generate a large amount of PINO-MBD prediction for reliability assessment
     device = torch.device('cpu')
     BSA_data_config = BSA_config['data']
     model = FNN1d_BSA_GradNorm(modes=BSA_config['model']['modes'],
                                width=BSA_config['model']['width'], fc_dim=BSA_config['model']['fc_dim'],
                                inputDim=BSA_data_config['inputDim'],
                                outputDim=BSA_data_config['outputDim'], task_number=4).to(device)
-    ckpt_path = 'F:/Pycharm/ExistingPytorch/GNN_Series/Physics-Informed Neural Operator/PINO-Project1/checkpoints/BSARunner/Experiment1/BSA_405.pt'
+    # checkpoint file name
+    ckpt_path = '~.pt'
     ckpt = torch.load(ckpt_path)
     model.load_state_dict(ckpt['model'])
-    virtual_datapath = 'F:/Pycharm/ExistingPytorch/GNN_Series/Physics-Informed Neural Operator/PINO-Project1/data/Project_BSA/PDEM/VirtualData_50000_Pack2.mat'
+    # input virtual dataset file name
+    virtual_datapath = '~.mat'
     input_eval = torch.tensor(h5py.File(virtual_datapath)['input'][:, 40:, :]).permute([2, 1, 0]).to(torch.float32)
     eval_dataset = torch.utils.data.TensorDataset(input_eval)
+    # choose the appropriate batch size according to your computer memory
     batch_size = 5000
     eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=batch_size, shuffle=False)
     eval_iter = iter(eval_loader)
     index = 1
-    SavePath = 'F:/Pycharm/ExistingPytorch/GNN_Series/Physics-Informed Neural Operator/PINO-Project1/checkpoints/BSARunner/Experiment1/eval/EV1/'
-
+    SavePath = '~/'
+    # start iterative output prediction data
     for i in range(0, int(input_eval.size(0)/batch_size)+1):
         print('Now operating batch No.{}'.format(i+1))
         x = next(eval_iter)[0].to(device)
